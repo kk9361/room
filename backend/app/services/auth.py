@@ -58,7 +58,7 @@ def token_response(response: Response, user, session_id, token, settings, client
             token,
             httponly=True,
             secure=settings.cookie_secure,
-            samesite="strict",
+            samesite=settings.cookie_samesite,
             path="/api/v1/auth",
             max_age=settings.refresh_token_days * 86400,
         )

@@ -139,7 +139,11 @@ try {
   await waitFor(webUrl);
   await run(
     process.execPath,
-    [resolve(root, "apps/web/node_modules/@playwright/test/cli.js"), "test"],
+    [
+      resolve(root, "apps/web/node_modules/@playwright/test/cli.js"),
+      "test",
+      ...(process.argv.includes("--") ? process.argv.slice(process.argv.indexOf("--") + 1) : []),
+    ],
     {
       cwd: resolve(root, "apps/web"),
       env: { ...env, PLAYWRIGHT_BASE_URL: webUrl },

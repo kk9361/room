@@ -62,7 +62,14 @@ async def logout(request: Request, response: Response, user=Depends(current_user
     await store(request).db.sessions.update_one(
         {"_id": request.state.session_id}, {"$set": {"revoked": True}}
     )
-    response.delete_cookie("roommate_refresh", path="/api/v1/auth")
+    settings = request.app.state.settings
+    response.delete_cookie(
+        "roommate_refresh",
+        path="/api/v1/auth",
+        httponly=True,
+        secure=settings.cookie_secure,
+        samesite=settings.cookie_samesite,
+    )
     await audit(request, user, "auth.logout", "user", user["_id"])
     return {"message": "Signed out"}
 

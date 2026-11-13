@@ -1,17 +1,19 @@
 import type { NextConfig } from "next";
 import path from "node:path";
+import { apiConfiguration } from "./config/api-url.mjs";
+const { proxyBaseUrl } = apiConfiguration(process.env);
 const config: NextConfig = {
   poweredByHeader: false,
   distDir: process.env.NEXT_DIST_DIR || ".next",
   outputFileTracingRoot: path.resolve(__dirname, "../.."),
   turbopack: { root: path.resolve(__dirname, "../..") },
   async rewrites() {
-    return [
+    return proxyBaseUrl ? [
       {
         source: "/api/v1/:path*",
-        destination: `${process.env.API_INTERNAL_URL || "http://127.0.0.1:8000"}/api/v1/:path*`,
+        destination: `${proxyBaseUrl}/:path*`,
       },
-    ];
+    ] : [];
   },
   async headers() {
     return [

@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -18,10 +19,13 @@ class Settings(BaseSettings):
     bootstrap_password: SecretStr | None = None
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
     cookie_secure: bool = False
+    cookie_samesite: Literal["strict", "lax", "none"] = "strict"
     db_timeout_ms: int = 8000
 
     @model_validator(mode="after")
     def production_security(self):
         if self.app_env == "production" and not self.cookie_secure:
             raise ValueError("Production requires COOKIE_SECURE=true")
+        if self.cookie_samesite == "none" and not self.cookie_secure:
+            raise ValueError("Cross-site cookies require COOKIE_SECURE=true")
         return self

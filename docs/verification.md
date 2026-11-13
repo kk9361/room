@@ -1,5 +1,9 @@
 # Verification report
 
+## Production login follow-up
+
+The production-login configuration changes have their own [diagnosis and verification report](production-login.md). The follow-up passed 16 URL/configuration tests, the Next.js production build, 32 backend tests against temporary real MongoDB, the existing 8 browser tests with direct API routing, and the new focused authentication browser test. The production website still needs a verified FastAPI host and successful live browser login; local passing tests do not establish production completion.
+
 Verified on **13 November 2026**, Windows, in `C:\Boys_Expence`. Announcement API checks ran on 12 November; the final web build, browser checks, Android build, and packaging were refreshed on 13 November.
 
 ## Completed checks

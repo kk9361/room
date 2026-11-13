@@ -129,6 +129,8 @@ Restore accepts only a brand-new database whose name starts with `roommate_resto
 
 Dockerfiles and `infra/compose.yaml` are provided for container hosting. Docker was not available for local validation. Production needs HTTPS termination, `APP_ENV=production`, `COOKIE_SECURE=true`, a strong private JWT key, a CORS origin allowlist, least-privilege Atlas access, a backup schedule, and a real Android API URL. Keep web and API on the same origin through the Next.js proxy. The API proxy URL is chosen at web build time.
 
+For the Vercel frontend and a separately hosted FastAPI backend, see the [production login and deployment guide](docs/production-login.md). It documents `NEXT_PUBLIC_API_BASE_URL`, the existing `API_INTERNAL_URL` proxy, the new Render Blueprint, secure cross-site session settings and PowerShell verification/deployment commands. A verified backend URL is required; no production hostname is assumed.
+
 ## Repository
 
 ```text

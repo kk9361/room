@@ -11,10 +11,10 @@ from app.main import create_app
 
 
 @pytest.fixture
-def client():
+def client(request):
     uri = os.environ.get("TEST_MONGODB_URI")
     database_name = "test_roommate_" + secrets.token_hex(6)
-    config = Settings(
+    options = dict(
         _env_file=None,
         jwt_secret="testing-only-secret-with-at-least-32-characters",
         bootstrap_username="admin",
@@ -22,8 +22,11 @@ def client():
         mongodb_uri=uri or "mongodb://localhost:27017",
         mongodb_database=database_name,
     )
+    options.update(getattr(request, "param", {}))
+    config = Settings(**options)
     database = None if uri else AsyncMongoMockClient(tz_aware=True)["test_ledger"]
-    with TestClient(create_app(config, database)) as test:
+    base_url = "https://testserver" if config.cookie_secure else "http://testserver"
+    with TestClient(create_app(config, database), base_url=base_url) as test:
         yield test
     if uri:
         from pymongo import MongoClient

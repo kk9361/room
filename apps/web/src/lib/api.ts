@@ -1,7 +1,10 @@
 import type { User } from "./types";
+import { normalizeApiBaseUrl } from "../../config/api-url.mjs";
 let accessToken: string | null = null;
 let refreshing: Promise<boolean> | null = null;
-const BASE = "/api/v1";
+// Next.js replaces this explicit NEXT_PUBLIC_ lookup during next build.
+// All requests, including cookie refresh and CSV downloads, share this base.
+const BASE = normalizeApiBaseUrl(process.env.NEXT_PUBLIC_API_BASE_URL);
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -32,6 +35,7 @@ export async function refreshSession(): Promise<boolean> {
         accessToken = data.access_token;
         return true;
       } catch {
+        accessToken = null;
         return false;
       } finally {
         refreshing = null;

@@ -1,0 +1,29 @@
+# Deploy this repository as a Render Blueprint. Supply MONGODB_URI privately.
+# The service URL is assigned by Render; no hostname is assumed here.
+services:
+  - type: web
+    name: roommate-ledger-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./infra/backend.Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/v1/health/ready
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: MONGODB_DATABASE
+        value: roommate
+      - key: JWT_SECRET
+        generateValue: true
+      - key: BOOTSTRAP_USERNAME
+        value: admin
+      - key: BOOTSTRAP_PASSWORD
+        generateValue: true
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: COOKIE_SAMESITE
+        value: none
+      - key: CORS_ORIGINS
+        value: https://room-six-murex.vercel.app
