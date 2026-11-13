@@ -1,0 +1,1 @@
+{"name":"roommate-ledger","version":"1.0.0","private":true,"engines":{"node":">=22.13.0"},"scripts":{"qa":"node scripts/qa.mjs","dev":"node scripts/local-dev.mjs","web":"npm --prefix apps/web run dev","mobile":"npm --prefix apps/mobile run start"},"devDependencies":{"mongodb-memory-server":"^11.3.0"}}
