@@ -21,6 +21,7 @@ EXCLUDED = {
     ".ruff_cache",
     ".local-data",
     ".backups",
+    ".vercel",
     "artifacts",
     "dist",
     "build",
@@ -30,7 +31,7 @@ EXCLUDED = {
     "playwright-report",
 }
 TOP_LEVEL = {"apps", "backend", "packages", "scripts", "docs", "infra", "specification"}
-ROOT_FILES = {"README.md", ".gitignore", ".env.example", ".dockerignore", "package.json", "package-lock.json"}
+ROOT_FILES = {"README.md", ".gitignore", ".env.example", ".dockerignore", "package.json", "package-lock.json", "render.yaml"}
 
 
 def sources():

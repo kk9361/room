@@ -1,3 +1,4 @@
+import json
 import logging
 import time
 from contextlib import asynccontextmanager
@@ -6,7 +7,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pymongo.errors import DuplicateKeyError, PyMongoError
+from pymongo.errors import DuplicateKeyError, OperationFailure, PyMongoError, ServerSelectionTimeoutError
 from starlette.exceptions import HTTPException
 
 from app.api.v1 import admin, auth, ledger, reports, rooms
@@ -29,6 +30,7 @@ def create_app(settings=None, database=None):
     async def lifespan(app):
         client = None
         app.state.ready = False
+        stage = "database_connection"
         try:
             if database is None:
                 client = client_for(config)
@@ -36,13 +38,33 @@ def create_app(settings=None, database=None):
                 await app.state.db.command("ping")
             else:
                 app.state.db = database
+            stage = "indexes"
             await indexes(app.state.db)
+            stage = "bootstrap"
             await bootstrap(app.state.db, config)
             app.state.ready = True
             logger.info('{"event":"database_ready"}')
-        except (PyMongoError, ValueError):
+        except (PyMongoError, ValueError) as exc:
             # Connection exceptions can contain URIs. Never emit their text.
-            logger.error('{"event":"database_unavailable","action":"check_backend_configuration"}')
+            code = getattr(exc, "code", None)
+            action = "check_backend_configuration"
+            if isinstance(exc, OperationFailure) and code in (18, 8000):
+                action = "check_atlas_database_user_credentials"
+            elif isinstance(exc, ServerSelectionTimeoutError):
+                action = "check_atlas_network_access_dns_tls"
+            elif isinstance(exc, OperationFailure) and code == 13:
+                action = "check_database_user_permissions"
+            elif isinstance(exc, OperationFailure) and code in (85, 86, 11000):
+                action = "check_database_indexes_and_duplicate_records"
+            elif stage == "bootstrap":
+                action = "check_bootstrap_configuration"
+            logger.error(json.dumps({
+                "event": "database_unavailable",
+                "stage": stage,
+                "error_type": type(exc).__name__,
+                "code": code if isinstance(code, int) else None,
+                "action": action,
+            }))
         yield
         if client:
             await client.close()
@@ -74,8 +96,6 @@ def create_app(settings=None, database=None):
 
     @app.middleware("http")
     async def request_context(request: Request, call_next):
-        import json
-
         request.state.request_id = uid()
         start = time.monotonic()
         if request.method in ("POST", "PATCH", "DELETE"):

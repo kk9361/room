@@ -1,8 +1,24 @@
 # Verification report
 
+## Render deployment follow-up - 14 November 2026
+
+The supplied dashboard identifies `https://roommate-ledger-api.onrender.com` and shows a failed deployment of commit `a4b612e`. The attached application logs repeatedly return HTTP 503 from `/api/v1/health/ready`; this code requires database connection, indexes and bootstrap to succeed before readiness is enabled. The excerpt does not include the remote database exception. Public health, readiness, OpenAPI and empty login requests timed out from this workspace. No production login success is claimed.
+
+The Docker start command and container health check now honor `PORT`, with an 8000 default for local containers. The Render Blueprint assigns port 10000. Failed initialization logs a sanitized stage, exception type, code and suggested action while keeping readiness at 503. Five regression cases cover invalid credentials, server selection timeout, permissions, index conflicts and bootstrap failure; they verify that private exception text never appears in logs.
+
+The complete backend suite passed **52 tests against temporary real MongoDB**. Python lint passed. Docker/Blueprint configuration was checked statically; Docker is unavailable locally, so no image build or container execution is claimed. No frontend or Android code changed in this follow-up. See [production deployment instructions](production-login.md) for the Render settings, Atlas outbound allowlist, current service URL and verification commands. The latest changes are local and are not in the failed deployment shown. Evidence: ignored `artifacts/render-deployment-backend-tests.log`.
+
+## Atlas-only storage follow-up — 14 November 2026
+
+The updated private credentials passed Atlas authentication. Existing records were backed up and copied to the verified empty Atlas `roommate` database; record counts and expense reconciliation passed. The running app was restarted against Atlas, and readiness reported `{"status":"ready","database":"roommate"}`. The old persistent local MongoDB process was stopped. Normal startup now uses `scripts/atlas-dev.mjs`; the former local-database entrypoint and configuration defaults have been removed. See [Atlas-only storage](atlas-storage.md).
+
+Automated regression checks continue to use disposable test databases, with an explicit environment and restricted database names. They do not write synthetic accounts or expenses to Atlas.
+
+The Atlas-only follow-up passed **47 backend tests**, **9 browser tests**, Python lint, startup syntax checks and a real rejected-local-URI startup check. After the regression tests, every imported Atlas document was compared with the private recovery export and matched, including account password hashes. The website returned HTTP 200, Atlas readiness returned HTTP 200 for `roommate`, and the old local MongoDB port 27018 was closed. Evidence: ignored `artifacts/atlas-storage-verification.json` and `artifacts/atlas-only-qa.log`.
+
 ## Production login follow-up
 
-The production-login configuration changes have their own [diagnosis and verification report](production-login.md). The follow-up passed 16 URL/configuration tests, the Next.js production build, 32 backend tests against temporary real MongoDB, the existing 8 browser tests with direct API routing, and the new focused authentication browser test. The production website still needs a verified FastAPI host and successful live browser login; local passing tests do not establish production completion.
+The production-login configuration changes have their own [diagnosis and verification report](production-login.md). The earlier follow-up passed 16 URL/configuration tests, the Next.js production build, 32 backend tests against temporary real MongoDB, the existing 8 browser tests with direct API routing, and the new focused authentication browser test. The Render service URL is now identified, but hosted readiness and successful live browser login are still required; local passing tests do not establish production completion.
 
 Verified on **13 November 2026**, Windows, in `C:\Boys_Expence`. Announcement API checks ran on 12 November; the final web build, browser checks, Android build, and packaging were refreshed on 13 November.
 
@@ -39,14 +55,14 @@ Verified on **13 November 2026**, Windows, in `C:\Boys_Expence`. Announcement AP
 | Dependency audits | Web: 0 known vulnerabilities; mobile: 0 known vulnerabilities; Python: no known vulnerabilities reported |
 | Private configuration | `.env`, data, backups, tools, native signing files, and test authentication state ignored/excluded |
 | Source packaging | Final source ZIP integrity and private-value checks passed; SHA-256 recorded alongside the archive |
-| Persistent local mode | Real MongoDB, API and Next.js started; HTTP page 200, readiness 200, admin login 200, forced password change true; stopped cleanly afterwards |
-| Supplied Atlas connection | Final 13 November read-only check returned **ServerSelectionTimeoutError**. Earlier attempts reached Atlas but authentication was rejected with code 8000. No live data was modified. |
+| Historical local mode (removed 14 November) | This earlier check used the retired local startup option; normal app storage is now Atlas |
+| Historical Atlas connection check (13 November) | Timed out or rejected credentials; superseded by the successful Atlas migration and readiness checks on 14 November above |
 
 ## Release verification still required
 
-- **Live Atlas:** the final connection check timed out before selecting a server. Check Atlas hostname, network access list, DNS, and TLS, then verify the database credentials in private `.env`; earlier attempts rejected authentication even with the password URL-encoded and database `roommate` selected. Rerun `scripts/check_atlas.py` before live verification. No live Atlas data was read, modified, dropped, or reset.
+- **Atlas from the hosted service:** local Atlas authentication, migration and readiness passed on 14 November. Render still needs its own current private URI and outbound network access in Atlas, then successful hosted readiness. The supplied failed-deployment logs do not establish the exact remote database error.
 - **Standalone Android APK and device:** APK compilation, signature, and metadata verification passed. The preview APK uses Android's development key and emulator API `http://10.0.2.2:8000/api/v1`. Set a reachable HTTPS backend URL for phone distribution and sign a production AAB with the release identity before store publication. No Android device is attached, so app installation and interaction remain unverified.
-- **Hosted production:** no hosting account/project, public backend domain, or release signing identity was supplied. Container and EAS configuration are included; no cloud deployment or store publication is claimed.
+- **Hosted production:** Vercel and Render service URLs are supplied, but their account access is not connected. The latest Render deployment shown failed. Deploy the latest source, configure the backend environment and Atlas allowlist, then verify readiness and browser login. No successful cloud deployment or store publication is claimed.
 - **External delivery:** invitation tokens and in-app announcement alerts work. Email invitation delivery and operating-system push while the app is closed are not implemented.
 - **Docker runtime:** Docker was unavailable on this computer; the deployment files have not been built under Docker here.
 

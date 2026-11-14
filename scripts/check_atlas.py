@@ -7,11 +7,16 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
 from app.core.config import Settings
 from app.database.connection import client_for
+from pydantic import ValidationError
 from pymongo.errors import OperationFailure, PyMongoError
 
 
 async def main():
-    settings = Settings()
+    try:
+        settings = Settings()
+    except ValidationError:
+        print({"connection": "FAIL", "reason": "Invalid backend configuration", "action": "Set a complete Atlas URI, database name and private JWT secret"})
+        return 1
     client = client_for(settings)
     try:
         await client.admin.command("ping")

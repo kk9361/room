@@ -77,7 +77,7 @@ try {
     BOOTSTRAP_USERNAME: "admin",
     BOOTSTRAP_PASSWORD: "TemporaryAdmin!123",
     COOKIE_SECURE: "false",
-    APP_ENV: "development",
+    APP_ENV: "test",
     CORS_ORIGINS: `http://localhost:${webPort},http://127.0.0.1:${webPort}`,
     TEST_MONGODB_URI: uri,
   };

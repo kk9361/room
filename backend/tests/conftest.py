@@ -6,6 +6,9 @@ from fastapi.testclient import TestClient
 from mongomock_motor import AsyncMongoMockClient
 
 os.environ.setdefault("JWT_SECRET", "testing-only-secret-with-at-least-32-characters")
+os.environ["APP_ENV"] = "test"
+os.environ["MONGODB_DATABASE"] = "test_import"
+os.environ.setdefault("MONGODB_URI", "mongodb://127.0.0.1:27017")
 from app.core.config import Settings
 from app.main import create_app
 
@@ -16,6 +19,7 @@ def client(request):
     database_name = "test_roommate_" + secrets.token_hex(6)
     options = dict(
         _env_file=None,
+        app_env="test",
         jwt_secret="testing-only-secret-with-at-least-32-characters",
         bootstrap_username="admin",
         bootstrap_password="TemporaryAdmin!123",

@@ -18,4 +18,4 @@ if ($LASTEXITCODE -ne 0) { throw 'Web dependency installation failed.' }
 npm --prefix apps/mobile ci
 if ($LASTEXITCODE -ne 0) { throw 'Mobile dependency installation failed.' }
 & ./.venv/Scripts/python.exe scripts/configure.py
-Write-Output 'Setup complete. Run npm run dev for the local database, API, and web app.'
+Write-Output 'Setup complete. Run npm run dev for the API and web app using MongoDB Atlas.'

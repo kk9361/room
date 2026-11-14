@@ -12,16 +12,18 @@ To post on the web, select your room, open **Announcements → New announcement*
 
 The toolchain and dependencies have already been installed in this workspace. Your private Atlas configuration and generated temporary administrator password are in `.env`. Open that file locally to retrieve `BOOTSTRAP_PASSWORD`; it is deliberately excluded from source control and deliverable ZIPs.
 
-The supplied Atlas credentials currently return **authentication failed (code 8000)**. Local mode works independently and preserves the Atlas configuration:
+Application data is stored in **MongoDB Atlas**, database `roommate`. The startup command verifies Atlas connectivity before starting FastAPI and Next.js. Correct the private Atlas credentials/network access if that check fails; startup never switches to an on-computer database.
 
 ```powershell
 Set-Location C:\Boys_Expence
-.\.tools\node_modules\node\bin\node.exe scripts\local-dev.mjs
+npm run dev
 ```
 
 Open **http://127.0.0.1:3000**. Sign in as `admin` using the temporary password from `.env`, then choose your own new password. Create a room and invite your roommates by their username or email. Each person registers their own account and accepts their invitation using “Join with invitation”.
 
-Local mode starts a real MongoDB server bound to loopback, the API, and the web app. Local data persists in `.local-data/mongodb`; the database is named `roommate_local`. The first start on a new machine downloads MongoDB. Ctrl+C stops the stack. Local mode and Atlas mode use separate data.
+The website and API run on this computer, while accounts, rooms, expenses and other application records are saved in Atlas. Ctrl+C stops the website/API. The former local database startup option has been removed. Historical files under `.local-data` and private backups are preserved for recovery; normal application startup never opens them.
+
+See [Atlas-only storage](docs/atlas-storage.md) for the current startup behavior, existing-data migration and test isolation.
 
 ## Clean installation
 
@@ -40,7 +42,7 @@ Setup preserves an existing `.env`. On a fresh checkout, it asks for database de
 1. Correct the database user's credentials in the private `.env`. Password characters such as `@` must be URL-encoded (`%40`) inside the URI. Use the Atlas **database user**, not an Atlas website login.
 2. Keep `MONGODB_DATABASE=roommate`; account records use `users`. Other modules create their own collections. Setup never resets data. The Platform admin has a separate, password-protected clear action that permanently deletes every document in every application collection, including all user accounts and audit history; collection and index definitions remain.
 3. Allow this computer/deployment's IP in Atlas network access and grant the database user appropriate access to `roommate`.
-4. Stop local mode before starting Atlas mode; both use ports 8000/3000.
+4. Stop any previously running app before restarting with `npm run dev`; the API and website use ports 8000/3000.
 
 ```powershell
 .\.venv\Scripts\python.exe scripts\check_atlas.py
@@ -76,7 +78,7 @@ Copy-Item .env.example .env.local
 npm start
 ```
 
-Android emulator API: `http://10.0.2.2:8000/api/v1`. To use local mode from an emulator, this address maps to the host loopback API. For a physical phone, use an HTTPS backend or explicitly bind the development API to your LAN interface and set `EXPO_PUBLIC_API_URL` to the computer's LAN address. Never put database credentials in mobile or web configuration.
+Android emulator API: `http://10.0.2.2:8000/api/v1`. This address connects to FastAPI on the computer; FastAPI saves data in Atlas. For a physical phone, use a hosted HTTPS backend. Never put database credentials in mobile or web configuration.
 
 Type checking and Android JavaScript bundling:
 
@@ -129,7 +131,7 @@ Restore accepts only a brand-new database whose name starts with `roommate_resto
 
 Dockerfiles and `infra/compose.yaml` are provided for container hosting. Docker was not available for local validation. Production needs HTTPS termination, `APP_ENV=production`, `COOKIE_SECURE=true`, a strong private JWT key, a CORS origin allowlist, least-privilege Atlas access, a backup schedule, and a real Android API URL. Keep web and API on the same origin through the Next.js proxy. The API proxy URL is chosen at web build time.
 
-For the Vercel frontend and a separately hosted FastAPI backend, see the [production login and deployment guide](docs/production-login.md). It documents `NEXT_PUBLIC_API_BASE_URL`, the existing `API_INTERNAL_URL` proxy, the new Render Blueprint, secure cross-site session settings and PowerShell verification/deployment commands. A verified backend URL is required; no production hostname is assumed.
+For the Vercel frontend and the Render FastAPI service, see the [production login and deployment guide](docs/production-login.md). The supplied Render dashboard identifies `https://roommate-ledger-api.onrender.com`; its latest deployment shown failed database readiness. The guide covers the current failure, private Atlas settings, Render port configuration, Vercel URL variables and PowerShell verification/deployment commands. Hosted readiness and browser login still need to pass after redeployment.
 
 ## Repository
 

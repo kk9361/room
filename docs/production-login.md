@@ -1,8 +1,26 @@
 # Production login: diagnosis, deployment and verification
 
+**14 November deployment update:** The supplied Render dashboard identifies the backend as `https://roommate-ledger-api.onrender.com`. Its deployment of commit `a4b612e` failed: the attached logs repeatedly show HTTP 503 from `/api/v1/health/ready`, followed by Render's health-check timeout. The exact remote database exception is absent from the supplied excerpt. Public requests from this workspace timed out, so hosted readiness and production login remain unverified.
+
+Atlas authentication now passes from this computer with the corrected private credentials. Existing records were imported into Atlas `roommate`, and the running local API reports that database as ready. Normal startup uses Atlas exclusively; see [Atlas-only storage](atlas-storage.md). Render has separate environment variables and network access; editing local `.env` does not update that service.
+
 ## Current verified state
 
-The supplied website is `https://room-six-murex.vercel.app`. Read-only HTTP checks on 13 November 2026 found:
+The supplied website is `https://room-six-murex.vercel.app`. The backend route is **`POST https://roommate-ledger-api.onrender.com/api/v1/auth/login`**, identified from the dashboard's service URL and this repository's FastAPI router. This identifies the intended route; it does not establish a healthy hosted service.
+
+Current deployment findings:
+
+| Check | Actual result |
+| --- | --- |
+| Render deployment shown in dashboard | Failed on commit `a4b612e`; readiness timed out |
+| Attached Render application logs | Repeated `GET /api/v1/health/ready` returned 503 |
+| Application readiness implementation | Requires database connection, indexes and administrator bootstrap to succeed |
+| Local Atlas connection and running API | Passed; readiness reports database `roommate` |
+| Public backend health, readiness, OpenAPI and empty login request | Timed out from this workspace on 14 November; no credentials sent |
+| Render private environment / Atlas network allowlist | Not inspected; user plans to update them before redeploying |
+| Latest Atlas-only and container changes | Present locally; not part of the failed deployment shown |
+
+Earlier read-only HTTP checks on 13 November 2026 found:
 
 | Request | Actual result |
 | --- | --- |
@@ -12,7 +30,7 @@ The supplied website is `https://room-six-murex.vercel.app`. Read-only HTTP chec
 | Website `POST /api/v1/auth/login` with `{}` | 404 JSON, `Cannot POST /api/v1/auth/login` |
 | Previously suggested example host `roommate-api.onrender.com` health and OpenAPI | Both 404; not a verified deployment of this project |
 
-The example host returns the same error format as the production proxy. This suggests a wrong upstream, but the Vercel project's private environment settings have not been inspected. No actual FastAPI deployment URL has been identified. The user does not know that URL. No Render API key, Vercel token or linked Vercel project is available in this workspace. **Production login remains unverified and the production fix is incomplete.**
+The earlier example host returned the same error format as the production proxy, suggesting a wrong upstream. Use the actual dashboard URL above after it passes readiness. Neither Render nor Vercel account access is connected in this workspace. **Production login remains unverified and the production fix is incomplete.**
 
 ## What the code actually does
 
@@ -25,15 +43,40 @@ The example host returns the same error format as the production proxy. This sug
 - JWT access tokens stay in memory. Web refresh tokens stay in an HttpOnly cookie; they are not placed in localStorage or returned as mobile refresh tokens. The server validates signature, expiry, user auth version and session revocation. Logout revokes the session and deletes its cookie.
 - Direct access from `vercel.app` to a different site requires `COOKIE_SECURE=true`, `COOKIE_SAMESITE=none`, and exact credentialed CORS. Cross-site cookies can still be blocked by browser privacy settings. The existing same-origin proxy remains available for those browsers; it can keep `COOKIE_SAMESITE=strict`.
 
-## Deploy the real FastAPI backend first
+## Repair the existing Render deployment first
 
-1. Commit and push the reviewed source changes to `kk9361/room`. Never commit `.env` files, database credentials or token values.
-2. Sign in to [Render](https://dashboard.render.com), select **New → Blueprint**, and connect that repository. Render reads the new root `render.yaml`.
-3. Enter the actual Atlas connection URI privately when Render asks for `MONGODB_URI`. Password characters in that URI must be URL encoded. Do not put this URI in Vercel's public variables.
-4. The Blueprint builds the existing Python 3.12 Dockerfile, generates separate random JWT and initial-admin secrets, selects database `roommate`, enables secure cross-site cookies, and sets `CORS_ORIGINS=https://room-six-murex.vercel.app`.
-5. Open the newly created backend service's **Connect → Outbound** tab. Allow its IP ranges in **Atlas → Network Access**. Verify the Atlas database user's permissions and credentials. Restart/redeploy the backend if initialization failed before network access was added.
-6. Copy the actual HTTPS service URL from the top of Render's service page. Do not assume a hostname from the service name. The earlier example address is not yours unless your dashboard independently confirms it.
-7. Run the verification command below. Readiness must pass before configuring Vercel. If there are already users in Atlas, their existing application credentials remain in force; bootstrap secrets do not reset existing users. For a newly created admin, retrieve the generated `BOOTSTRAP_PASSWORD` privately from Render and change it at first sign-in.
+1. Commit and push the reviewed source changes to `kk9361/room`, branch `main`. Keep private `.env` files excluded. The failed screenshot's commit predates the Atlas-only and deployment changes now in the workspace.
+2. Open the existing **roommate-ledger-api** service in [Render](https://dashboard.render.com). Update its **Environment** with the values below before redeploying. Do not create a second service.
+3. Copy the complete, working Atlas URI from private configuration into Render's `MONGODB_URI`. It must contain the current URL-encoded database password and no `<db_password>` placeholder. A password reset in Atlas or an edit to local `.env` does not update Render's saved URI.
+4. Open this service's **Connect > Outbound** tab and add every listed CIDR range to **Atlas > Network Access**. Verify that the Atlas database user can read and write `roommate` and create its indexes. Wait for the allowlist entries to become active.
+5. Keep the health-check path **`/api/v1/health/ready`** in Render Settings. The container now binds to `0.0.0.0:$PORT`; the Blueprint sets `PORT=10000`. Its Docker health check uses the same port. Port alignment is a separate correction: the supplied 503 responses already establish that Render reached the old application.
+6. Select **Manual Deploy > Deploy latest commit** after the environment and network changes are saved. A successful startup logs `{"event":"database_ready"}`. Failed startup now emits a sanitized `database_unavailable` event with its stage, error type, numeric code and suggested action, without exception text or secrets.
+7. Run the verification command below. Database readiness must pass before configuring Vercel. Existing application passwords remain valid; bootstrap secrets do not reset existing users. For a newly created admin, retrieve `BOOTSTRAP_PASSWORD` privately from Render and change it at first sign-in.
+
+| Render environment key | Value |
+| --- | --- |
+| `PORT` | `10000` |
+| `APP_ENV` | `production` |
+| `MONGODB_URI` | Complete working Atlas URI, entered privately |
+| `MONGODB_DATABASE` | `roommate` |
+| `JWT_SECRET` | Keep the existing generated private secret, at least 32 characters |
+| `BOOTSTRAP_USERNAME` | `admin` |
+| `BOOTSTRAP_PASSWORD` | Keep the existing generated private secret; at least 12 characters if creating an initial admin |
+| `COOKIE_SECURE` | `true` |
+| `COOKIE_SAMESITE` | `none` for direct browser requests |
+| `CORS_ORIGINS` | `https://room-six-murex.vercel.app` |
+
+If readiness still fails, find the first new `database_unavailable` event in the deployment logs:
+
+| Diagnostic action | Check |
+| --- | --- |
+| `check_atlas_database_user_credentials` | Current Atlas database username/password in Render's URI; codes 18 or 8000 |
+| `check_atlas_network_access_dns_tls` | Render outbound ranges in Atlas, cluster availability, DNS and TLS |
+| `check_database_user_permissions` | Atlas database role for `roommate`; code 13 |
+| `check_database_indexes_and_duplicate_records` | Index conflicts or duplicate indexed records; codes 85, 86 or 11000 |
+| `check_bootstrap_configuration` | Initial-admin configuration if bootstrap is needed |
+
+The logs supplied so far do not identify which of these caused the remote failure. Keep the readiness check strict; using the liveness path would hide failed database initialization. After fixing startup settings, restart/redeploy so initialization runs again.
 
 Render's free services sleep on idle and have usage limits. They are useful for evaluation, but their cold starts are unsuitable for a reliable always-on production service. Deployment of the Docker image itself has not been tested locally because Docker is unavailable.
 
@@ -43,8 +86,8 @@ For direct browser requests, use:
 
 | Key | Value |
 | --- | --- |
-| `NEXT_PUBLIC_API_BASE_URL` | The verified backend HTTPS origin followed by `/api/v1` |
-| `API_INTERNAL_URL` | The same verified backend HTTPS origin; preserves the existing API proxy for older clients and diagnostics |
+| `NEXT_PUBLIC_API_BASE_URL` | `https://roommate-ledger-api.onrender.com/api/v1` |
+| `API_INTERNAL_URL` | `https://roommate-ledger-api.onrender.com` |
 
 These are public routing addresses, not credentials. Keep `MONGODB_URI`, `JWT_SECRET`, `BOOTSTRAP_PASSWORD`, `COOKIE_*`, `APP_ENV`, and `CORS_ORIGINS` on the backend host. Do not import the backend `.env` into Vercel. Set Production variables for the production website and redeploy: public variables and rewrites are fixed during `next build`.
 
@@ -58,14 +101,14 @@ Use Node.js 22.13 or newer. The first block commits and pushes source changes; r
 Set-Location C:\Boys_Expence
 git status --short
 git add .
-git commit -m "Fix API deployment configuration and cross-origin web sessions"
+git commit -m "Require Atlas storage and fix Render startup diagnostics and port"
 git push origin main
 ```
 
-Create the Render Blueprint, configure Atlas access, and copy its actual service URL. This prompt avoids publishing an invented example hostname:
+Update the existing Render service and Atlas access as described above, then deploy its latest commit. The backend URL below comes from the supplied Render dashboard:
 
 ```powershell
-$backendUrl = Read-Host 'Paste the actual HTTPS URL from your Render backend service'
+$backendUrl = 'https://roommate-ledger-api.onrender.com'
 .\scripts\Test-ProductionApi.ps1 -BackendUrl $backendUrl
 ```
 
@@ -120,7 +163,9 @@ The premium UI source and styles were not changed.
 | PowerShell deployment helper | Syntax parsed; cloud login/deployment not executed |
 | Python lint | Passed for all changed Python files |
 | Render Blueprint | YAML parsed; Dockerfile path and private/generated secret settings checked; cloud deployment not executed |
-| Production browser login | Not verified; real FastAPI backend URL and hosting access still required |
+| Latest Atlas-only and startup-diagnostics backend suite | 52 passed against temporary real MongoDB; includes five failing-startup cases with readiness and secret-safe log assertions |
+| Render port configuration | Docker command uses `PORT` with an 8000 local default; Blueprint assigns 10000; Docker image runtime not verified locally |
+| Production browser login | Not verified; supplied Render deployment failed and account access is unavailable |
 
 The existing 8 browser tests passed in the initial full run. The new authentication test then passed separately; a fresh complete 9-test rerun was unnecessary. Logs are in the ignored `artifacts/login-api-*` files. No production accounts, rooms or expenses were created by the diagnostics. No login credentials were sent to the unverified example host. Temporary MongoDB and synthetic QA accounts were used for local tests.
 
@@ -130,6 +175,8 @@ The existing 8 browser tests passed in the initial full run. The new authenticat
 - [Next.js rewrites](https://nextjs.org/docs/app/api-reference/config/next-config-js/rewrites)
 - [FastAPI CORS](https://fastapi.tiangolo.com/tutorial/cors/)
 - [Render Blueprint configuration](https://render.com/docs/blueprint-spec)
+- [Render health checks](https://render.com/docs/health-checks)
+- [Render port binding](https://render.com/docs/web-services#port-binding)
 - [Render outbound IP ranges](https://render.com/docs/outbound-ip-addresses)
 - [Render free service limits](https://render.com/docs/free)
 - [Vercel environment CLI](https://vercel.com/docs/cli/env)

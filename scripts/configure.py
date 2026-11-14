@@ -13,15 +13,14 @@ def main():
     if path.exists():
         print("Existing .env preserved. Edit it locally to update configuration.")
         return
-    cluster = input("Atlas hostname (blank for local-only mode): ").strip()
-    if cluster:
-        if any(c in cluster for c in "/\\\n\r@?"):
-            raise ValueError("Enter only the Atlas hostname, e.g. cluster0.example.mongodb.net")
-        username = input("Atlas database username: ").strip()
-        password = getpass.getpass("Atlas database password (hidden): ")
-        uri = f"mongodb+srv://{quote(username, safe='')}:{quote(password, safe='')}@{cluster}/?retryWrites=true&w=majority"
-    else:
-        uri = "mongodb://127.0.0.1:27018"
+    cluster = input("Atlas hostname (required): ").strip()
+    if not cluster.endswith(".mongodb.net") or any(c in cluster for c in "/\\\n\r@? "):
+        raise ValueError("Enter the Atlas cluster hostname ending in .mongodb.net; local database mode is unavailable")
+    username = input("Atlas database username: ").strip()
+    password = getpass.getpass("Atlas database password (hidden): ")
+    if not username or not password:
+        raise ValueError("Atlas database username and password are required")
+    uri = f"mongodb+srv://{quote(username, safe='')}:{quote(password, safe='')}@{cluster}/?retryWrites=true&w=majority"
     database = input("Database name [roommate]: ").strip() or "roommate"
     if not database.replace("_", "").isalnum():
         raise ValueError("Use letters, numbers, and underscores in database name")

@@ -8,7 +8,7 @@ ORIGIN = "https://room-six-murex.vercel.app"
 
 @pytest.mark.parametrize(
     "client",
-    [{"app_env": "production", "cookie_secure": True, "cookie_samesite": "none", "cors_origins": ORIGIN}],
+    [{"cookie_secure": True, "cookie_samesite": "none", "cors_origins": ORIGIN}],
     indirect=True,
 )
 def test_cross_origin_web_authentication_and_logout(client):
@@ -60,6 +60,7 @@ def test_insecure_cross_site_cookies_are_rejected():
         Settings(
             _env_file=None,
             app_env="development",
+            mongodb_uri="mongodb+srv://qa:qa@fixture.mongodb.net/",
             jwt_secret="test-only-secret-with-at-least-32-characters",
             cookie_secure=False,
             cookie_samesite="none",
